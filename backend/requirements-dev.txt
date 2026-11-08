@@ -1,0 +1,3 @@
+# Include everything from the main file, then add test tools
+-r requirements.txt
+pytest>=8.0

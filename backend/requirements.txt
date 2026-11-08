@@ -1,0 +1,66 @@
+
+# =====================================
+# WEB FRAMEWORK
+# =====================================
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+pydantic-settings>=2.4
+
+# =====================================
+# DATABASE
+# =====================================
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+alembic>=1.13
+pgvector>=0.3
+
+# =====================================
+# CACHE
+# =====================================
+redis>=5.0
+
+# =====================================
+# AUTHENTICATION
+# =====================================
+pyjwt>=2.8
+bcrypt>=4.1
+
+# =====================================
+# PDF PARSING
+# =====================================
+pymupdf>=1.24
+
+# =====================================
+# AI & EMBEDDINGS
+# =====================================
+sentence-transformers>=3.0
+
+# =====================================
+# LANGCHAIN
+# =====================================
+langchain
+langchain-core
+langchain-community
+
+# =====================================
+# AI PROVIDERS
+# =====================================
+langchain-groq
+langchain-google-genai
+langchain-huggingface
+
+# =====================================
+# AGENTS
+# =====================================
+langgraph
+langgraph-checkpoint-postgres
+langsmith
+
+# =====================================
+# IMAGE PROCESSING & OCR
+# =====================================
+pillow
+opencv-python-headless
+pytesseract
+imagehash

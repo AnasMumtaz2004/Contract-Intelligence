@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.pytestcache/
+*.egg-info/
+
+# Secrets and local data
+.env
+uploads/
+backend/uploads/
+
+# Alembic
+alembic/
+backend/alembic/
+alembic.ini
+backend/alembic.ini
+
+# Model downloads and cache
+.cache/
+
+# Frontend
+node_modules/
+dist/
+
+# Editor
+.idea/
+.vscode/
+.DS_Store
+
+# Backend environment
+backend/Scripts/
+
+# Docker
+dockerfiles/
+docker-compose.yml
+
+# Build and make files
+Makefile
+makefile
+
+# Evaluation and data
+evals/
+data/

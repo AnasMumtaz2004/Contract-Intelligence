@@ -17,27 +17,38 @@ from app.database import AsyncSessionLocal, engine  # noqa: E402
 from app.llm import build_gemini, build_groq  # noqa: E402
 from app.models import Contract, User  # noqa: E402
 from pipelines import PIPELINES  # noqa: E402
+from app.tracing import setup_tracing  # noqa: E402
 
-QUESTIONS_FILE = EVAL_FOLDER / "questions.jsonl"
 RESULTS_FOLDER = EVAL_FOLDER / "results"
 
 # Pause between questions to stay under the free-tier request limits
 PAUSE_SECONDS = 4
+
+# After this many failed questions in a row, the run stops (the LLM is probably out of quota)
+MAX_FAILURES_IN_A_ROW = 3
+
+# One question may take at most this long, with both LLM providers included
+QUESTION_TIMEOUT_SECONDS = 300
 
 # A question counts as a "context hit" if this share of the expected clause appears in the retrieved text
 HIT_THRESHOLD = 0.5
 SHINGLE_SIZE = 5
 
 
-def load_questions(limit: int) -> list[dict]:
-    """Read questions.jsonl. A limit of 0 means all questions."""
+def load_questions(limit: int, levels: list[int]) -> list[dict]:
+    """Read every questions*.jsonl file. A limit of 0 means all, and no levels means all levels."""
     questions = []
-    with open(QUESTIONS_FILE, encoding="utf-8") as file:
-        for line in file:
-            line = line.strip()
-            if line == "":
-                continue
-            questions.append(json.loads(line))
+
+    for path in sorted(EVAL_FOLDER.glob("questions*.jsonl")):
+        with open(path, encoding="utf-8") as file:
+            for line in file:
+                line = line.strip()
+                if line == "":
+                    continue
+                record = json.loads(line)
+                if len(levels) > 0 and record["level"] not in levels:
+                    continue
+                questions.append(record)
 
     if limit > 0:
         questions = questions[:limit]
@@ -82,6 +93,30 @@ def check_context_hit(supporting_text: str, contexts: list[str]) -> bool:
     return share >= HIT_THRESHOLD
 
 
+def check_mention(answer: str, must_mention: list[str]):
+    """Check that the answer contains one of the required words. Returns None if no words are required."""
+    if len(must_mention) == 0:
+        return None
+
+    lower_answer = answer.lower()
+    for word in must_mention:
+        if word.lower() in lower_answer:
+            return True
+    return False
+
+
+def check_amendment_retrieved(sources: list[str], amendment_files: list[str]):
+    """Check that a chunk of an amendment was retrieved. Returns None for questions without amendments."""
+    if len(amendment_files) == 0:
+        return None
+
+    for source in sources:
+        for amendment_file in amendment_files:
+            if source.endswith(amendment_file):
+                return True
+    return False
+
+
 async def find_contract_id(db, user_id: int, vendor_name: str):
     """Find the id of the user's contract for a vendor."""
     query = select(Contract).where(
@@ -95,10 +130,17 @@ async def find_contract_id(db, user_id: int, vendor_name: str):
     return contract.id
 
 
-async def generate_answers(db, user_id: int, pipeline_name: str, questions: list[dict]) -> list[dict]:
-    """Run one pipeline over all questions and return the answers."""
+async def generate_answers(
+    db,
+    user_id: int,
+    pipeline_name: str,
+    questions: list[dict],
+    answers_file: Path,
+    saved_by_id: dict,
+) -> None:
+    """Run one pipeline over the questions. Every answer is saved at once, so a stopped run loses nothing."""
     pipeline = PIPELINES[pipeline_name]
-    results = []
+    failures_in_a_row = 0
 
     for number, question in enumerate(questions, start=1):
         print(pipeline_name, number, "/", len(questions), question["id"])
@@ -108,22 +150,40 @@ async def generate_answers(db, user_id: int, pipeline_name: str, questions: list
             print("  vendor not found in the database, skipped:", question["vendor_name"])
             continue
 
-        output = await pipeline(db, user_id, question["question"], contract_id)
+        # An LLM call can fail or hang (quota, network). One bad question must not lose the whole run.
+        try:
+            call = pipeline(db, user_id, question["question"], contract_id)
+            output = await asyncio.wait_for(call, timeout=QUESTION_TIMEOUT_SECONDS)
+        except Exception as error:
+            await db.rollback()
+            failures_in_a_row += 1
+            print("  FAILED:", str(error)[:200])
+            if failures_in_a_row >= MAX_FAILURES_IN_A_ROW:
+                print("Stopping: the LLM keeps failing, probably a quota limit.")
+                print("The answers saved so far are kept. Run the same command again later.")
+                return
+            continue
+
+        failures_in_a_row = 0
 
         item = dict(question)
         item["answer"] = output["answer"]
         item["status"] = output["status"]
         item["contexts"] = output["contexts"]
+        item["sources"] = output["sources"]
+        item["steps"] = output.get("steps", [])
         item["context_hit"] = check_context_hit(question["supporting_text"], output["contexts"])
-        results.append(item)
+        item["mention_hit"] = check_mention(output["answer"], question.get("must_mention", []))
+        item["amendment_retrieved"] = check_amendment_retrieved(output["sources"], question.get("amendment_files", []))
+
+        saved_by_id[item["id"]] = item
+        save_json(answers_file, list(saved_by_id.values()))
 
         await asyncio.sleep(PAUSE_SECONDS)
 
-    return results
 
-
-async def generate_all(questions: list[dict], email: str, refresh: bool) -> dict:
-    """Generate (or load saved) answers for every pipeline."""
+async def generate_all(questions: list[dict], email: str, pipeline_names: list[str], refresh: bool) -> dict:
+    """Generate answers for every pipeline. Answers that are already saved are reused."""
     all_results = {}
 
     async with AsyncSessionLocal() as db:
@@ -132,18 +192,30 @@ async def generate_all(questions: list[dict], email: str, refresh: bool) -> dict
         if user is None:
             sys.exit("User not found: " + email)
 
-        for pipeline_name in PIPELINES:
+        for pipeline_name in pipeline_names:
             answers_file = RESULTS_FOLDER / ("answers_" + pipeline_name + ".json")
 
-            # Saved answers save LLM quota. Use --refresh to generate them again.
+            # With --refresh the saved answers are ignored, and the file only keeps the new ones
+            saved_by_id = {}
             if answers_file.exists() and not refresh:
-                print("Using saved answers for", pipeline_name)
-                all_results[pipeline_name] = load_json(answers_file)
-                continue
+                for item in load_json(answers_file):
+                    saved_by_id[item["id"]] = item
 
-            results = await generate_answers(db, user.id, pipeline_name, questions)
-            save_json(answers_file, results)
-            all_results[pipeline_name] = results
+            missing_questions = []
+            for question in questions:
+                if question["id"] not in saved_by_id:
+                    missing_questions.append(question)
+
+            if len(missing_questions) > 0:
+                await generate_answers(db, user.id, pipeline_name, missing_questions, answers_file, saved_by_id)
+            else:
+                print("Using saved answers for", pipeline_name)
+
+            selected = []
+            for question in questions:
+                if question["id"] in saved_by_id:
+                    selected.append(saved_by_id[question["id"]])
+            all_results[pipeline_name] = selected
 
     await engine.dispose()
     return all_results
@@ -218,47 +290,66 @@ def score_with_ragas(items: list[dict]) -> list[dict]:
     return scored
 
 
+def score_all(all_results: dict, refresh: bool) -> None:
+    """Score the answers of every pipeline. Questions that already have scores are skipped."""
+    for pipeline_name, results in all_results.items():
+        scores_file = RESULTS_FOLDER / ("scores_" + pipeline_name + ".json")
+
+        saved_by_id = {}
+        if scores_file.exists() and not refresh:
+            for entry in load_json(scores_file):
+                saved_by_id[entry["id"]] = entry
+
+        # Ragas only scores answers that were really given for answerable questions
+        items_to_score = []
+        for item in results:
+            if item["id"] in saved_by_id:
+                continue
+            if item["answerable"] and item["status"] == "found" and len(item["contexts"]) > 0:
+                items_to_score.append(item)
+
+        if len(items_to_score) == 0:
+            print("Nothing new to score for", pipeline_name)
+            continue
+
+        print("Scoring", len(items_to_score), "answers for", pipeline_name)
+        for entry in score_with_ragas(items_to_score):
+            saved_by_id[entry["id"]] = entry
+        save_json(scores_file, list(saved_by_id.values()))
+
+
 def main() -> None:
     """Generate answers for each pipeline, then score them."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--email", required=True, help="Email of the account that owns the contracts")
     parser.add_argument("--limit", type=int, default=0, help="Only use the first N questions (0 = all)")
+    parser.add_argument("--levels", type=int, nargs="*", default=[], help="Only these levels, like: --levels 5 7")
+    parser.add_argument("--pipelines", nargs="*", default=[], help="Only these pipelines (default: all)")
     parser.add_argument("--refresh", action="store_true", help="Ignore saved answers and scores")
     parser.add_argument("--skip-ragas", action="store_true", help="Skip the Ragas scoring (saves LLM quota)")
     args = parser.parse_args()
+    setup_tracing()
+    
+    pipeline_names = args.pipelines
+    if len(pipeline_names) == 0:
+        pipeline_names = list(PIPELINES.keys())
+    for name in pipeline_names:
+        if name not in PIPELINES:
+            sys.exit("Unknown pipeline: " + name + ". Choose from: " + ", ".join(PIPELINES.keys()))
 
-    questions = load_questions(args.limit)
-    print("Questions:", len(questions))
+    questions = load_questions(args.limit, args.levels)
+    print("Questions:", len(questions), "| pipelines:", pipeline_names)
 
     # All database work happens inside one asyncio.run call.
     # Ragas runs afterwards, because it starts its own event loop.
-    all_results = asyncio.run(generate_all(questions, args.email, args.refresh))
+    all_results = asyncio.run(generate_all(questions, args.email, pipeline_names, args.refresh))
 
     if args.skip_ragas:
-        print("Skipped Ragas. Run report.py to see the cheap metrics.")
+        print("Skipped Ragas. Run report.py to see the free metrics.")
         return
 
-    for pipeline_name, results in all_results.items():
-        scores_file = RESULTS_FOLDER / ("scores_" + pipeline_name + ".json")
-        if scores_file.exists() and not args.refresh:
-            print("Using saved scores for", pipeline_name)
-            continue
-
-        # Ragas only scores answers that were really given for answerable questions
-        items_to_score = []
-        for item in results:
-            if item["answerable"] and item["status"] == "found" and len(item["contexts"]) > 0:
-                items_to_score.append(item)
-
-        print("Scoring", len(items_to_score), "answers for", pipeline_name)
-        if len(items_to_score) == 0:
-            save_json(scores_file, [])
-            continue
-
-        scored = score_with_ragas(items_to_score)
-        save_json(scores_file, scored)
-
-    print("Done. Run report.py to see the table.")
+    score_all(all_results, args.refresh)
+    print("Done. Run report.py to see the tables.")
 
 
 if __name__ == "__main__":

@@ -7,11 +7,11 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.ingestion.chunking import chunk_sections
 from app.ingestion.indexing import save_chunks, save_sections
-from app.ingestion.parsing import count_words, parse_pdf
+from app.ingestion.parsing import count_words, parse_with_router
 from app.ingestion.structure import find_sections
 from app.models import Document
 
-# If a PDF has fewer words than this, it is probably a scan
+# If a PDF has fewer words than this, it has no readable text
 MIN_WORDS_IN_DOCUMENT = 50
 
 
@@ -45,6 +45,16 @@ async def set_status(db: AsyncSession, document: Document, new_status: str) -> N
     await db.commit()
 
 
+def make_no_text_message(ocr_error: str) -> str:
+    """Write the error message for a document without readable text."""
+    message = "No readable text found."
+    if ocr_error != "":
+        message += " The PDF looks scanned, and OCR failed: " + ocr_error
+    else:
+        message += " The file may be empty or an unsupported scan."
+    return message
+
+
 async def run_ingestion(document_id: int) -> None:
     """Background job: parse, chunk, embed and save one uploaded document."""
     # A background job needs its own database session
@@ -55,12 +65,15 @@ async def run_ingestion(document_id: int) -> None:
 
         try:
             await set_status(db, document, "parsing")
-            # PyMuPDF is not async, so it runs in a thread
-            pages = await asyncio.to_thread(parse_pdf, document.file_path)
+            # Parsing (and OCR) is slow and not async, so it runs in a thread
+            parse_result = await asyncio.to_thread(parse_with_router, document.file_path)
+            pages = parse_result["pages"]
             document.page_count = len(pages)
+            document.parser_used = parse_result["parser_used"]
+            document.parse_quality = parse_result["parse_quality"]
 
             if count_words(pages) < MIN_WORDS_IN_DOCUMENT:
-                raise ValueError("No readable text found. Scanned PDFs are not supported yet.")
+                raise ValueError(make_no_text_message(parse_result["ocr_error"]))
 
             await set_status(db, document, "chunking")
             sections = find_sections(pages)

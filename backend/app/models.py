@@ -1,9 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Computed,
+    Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -61,6 +63,14 @@ class Document(Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     page_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     chunk_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # The date the document takes effect. It tells us which amendment is the newest.
+    effective_date: Mapped[date | None] = mapped_column(Date)
+    # For an amendment or exhibit: the document it belongs to
+    parent_document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"))
+    # Which parsing paths were used: pymupdf, pymupdf+tables, pymupdf+ocr
+    parser_used: Mapped[str] = mapped_column(String(50), default="pymupdf", server_default="pymupdf")
+    # Share of pages that gave readable text (0 to 1)
+    parse_quality: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -135,6 +145,8 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text)
     # Only assistant messages have a status: found or not_found
     status: Mapped[str | None] = mapped_column(String(30))
+    # A note shown under the answer, for example "this contract has amendments"
+    warning: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -148,3 +160,5 @@ class Citation(Base):
     chunk_id: Mapped[int] = mapped_column(ForeignKey("chunks.id", ondelete="CASCADE"))
     # The number shown in the answer text, like [1]
     number: Mapped[int] = mapped_column(Integer)
+     # The claims of the answer that this source supports, as a JSON list
+    claims_json: Mapped[str | None] = mapped_column(Text)

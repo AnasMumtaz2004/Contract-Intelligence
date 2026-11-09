@@ -1,5 +1,12 @@
 import { Badge } from "./ui";
 
+// A short explanation under the status badge
+const STATUS_HELP = {
+  partial: "Only part of this answer could be confirmed from the contract.",
+  conflicting: "The documents disagree and nothing shows which one applies. Check the sources.",
+  not_found: "The contract does not seem to contain this.",
+};
+
 /** Show the answer text. Source numbers like [1] become clickable chips. */
 function AnswerText({ content, citations, onCitationClick }) {
   // The split keeps the bracket parts, like "[1]" or "[2, 3]", as separate pieces
@@ -42,11 +49,24 @@ function AnswerText({ content, citations, onCitationClick }) {
   );
 }
 
-/** One assistant answer with its status, clickable sources and a short notice. */
+/** One assistant answer with its status, a warning, clickable sources and a short notice. */
 export default function AnswerCard({ message, onCitationClick }) {
+  const statusHelp = STATUS_HELP[message.status];
+
   return (
     <div className="max-w-3xl rounded-lg bg-white p-4 shadow">
-      <div className="mb-2">{message.status !== null && <Badge status={message.status} />}</div>
+      <div className="mb-2 flex items-center gap-2">
+        {message.status !== null && <Badge status={message.status} />}
+        {statusHelp && <span className="text-xs text-gray-500">{statusHelp}</span>}
+      </div>
+
+      {/* The warning lists amendments, claims that could not be verified, and similar notes */}
+      {message.warning && (
+        <div className="mb-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+          <span className="font-semibold">Please check. </span>
+          {message.warning}
+        </div>
+      )}
 
       <AnswerText content={message.content} citations={message.citations} onCitationClick={onCitationClick} />
 
@@ -60,7 +80,8 @@ export default function AnswerCard({ message, onCitationClick }) {
                   onClick={() => onCitationClick(citation)}
                   className="text-left text-xs text-blue-700 hover:underline"
                 >
-                  [{citation.number}] {citation.file_name} · {citation.section_path} · page {citation.page_number}
+                  [{citation.number}] {citation.file_name.split("/").pop()} · {citation.section_path} · page{" "}
+                  {citation.page_number}
                 </button>
               </li>
             ))}

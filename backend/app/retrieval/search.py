@@ -41,13 +41,19 @@ def add_filters(query, user_id: int, contract_id: int | None, document_type: str
     return query
 
 
-def make_result(chunk: Chunk, file_name: str) -> dict:
+def make_result(chunk: Chunk, file_name: str, document_type: str, effective_date) -> dict:
     """Turn a chunk row into a simple dictionary."""
+    effective_text = ""
+    if effective_date is not None:
+        effective_text = effective_date.isoformat()
+
     return {
         "chunk_id": chunk.id,
         "document_id": chunk.document_id,
         "contract_id": chunk.contract_id,
         "file_name": file_name,
+        "document_type": document_type,
+        "effective_date": effective_text,
         "section_path": chunk.section_path,
         "page_number": chunk.page_number,
         "content": chunk.content,
@@ -67,7 +73,13 @@ async def vector_search(
     question_vector = await asyncio.to_thread(embed_query, question)
     distance = Chunk.embedding.cosine_distance(question_vector)
 
-    query = select(Chunk, Document.file_name, distance.label("distance"))
+    query = select(
+        Chunk,
+        Document.file_name,
+        Document.document_type,
+        Document.effective_date,
+        distance.label("distance"),
+    )
     query = query.join(Document, Chunk.document_id == Document.id)
     query = add_filters(query, user_id, contract_id, document_type)
     # The smallest distance means the closest meaning
@@ -77,8 +89,8 @@ async def vector_search(
     result = await db.execute(query)
 
     results = []
-    for chunk, file_name, _distance in result.all():
-        results.append(make_result(chunk, file_name))
+    for chunk, file_name, doc_type, effective_date, _distance in result.all():
+        results.append(make_result(chunk, file_name, doc_type, effective_date))
     return results
 
 
@@ -99,7 +111,13 @@ async def keyword_search(
     tsquery = func.to_tsquery(literal_column("'english'"), keyword_query)
     rank = func.ts_rank(Chunk.search_vector, tsquery)
 
-    query = select(Chunk, Document.file_name, rank.label("rank"))
+    query = select(
+        Chunk,
+        Document.file_name,
+        Document.document_type,
+        Document.effective_date,
+        rank.label("rank"),
+    )
     query = query.join(Document, Chunk.document_id == Document.id)
     # "@@" means: this chunk matches the search query
     query = query.where(Chunk.search_vector.op("@@")(tsquery))
@@ -110,8 +128,8 @@ async def keyword_search(
     result = await db.execute(query)
 
     results = []
-    for chunk, file_name, _rank in result.all():
-        results.append(make_result(chunk, file_name))
+    for chunk, file_name, doc_type, effective_date, _rank in result.all():
+        results.append(make_result(chunk, file_name, doc_type, effective_date))
     return results
 
 
@@ -158,3 +176,35 @@ async def hybrid_search(
 
     merged = merge_with_rrf([vector_results, keyword_results], settings.rrf_k)
     return merged[:top_k]
+
+
+async def find_amendment_warning(db: AsyncSession, chunks: list[dict]) -> str:
+    """Return a warning if a chunk comes from a contract that has amendments. Otherwise an empty text."""
+    contract_ids = set()
+    for chunk in chunks:
+        if chunk["document_type"] != "Amendment":
+            contract_ids.add(chunk["contract_id"])
+
+    if len(contract_ids) == 0:
+        return ""
+
+    query = select(Document)
+    query = query.where(Document.contract_id.in_(contract_ids))
+    query = query.where(Document.document_type == "Amendment")
+    query = query.order_by(Document.effective_date, Document.id)
+    result = await db.execute(query)
+    amendments = result.scalars().all()
+
+    if len(amendments) == 0:
+        return ""
+
+    labels = []
+    for amendment in amendments:
+        label = amendment.file_name.split("/")[-1]
+        if amendment.effective_date is not None:
+            label += " (effective " + amendment.effective_date.isoformat() + ")"
+        labels.append(label)
+
+    warning = "This contract has amendments: " + ", ".join(labels) + ". "
+    warning += "A clause used in this answer may have been changed by them. Please check the amendments."
+    return warning

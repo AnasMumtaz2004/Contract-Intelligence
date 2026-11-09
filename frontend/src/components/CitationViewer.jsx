@@ -8,6 +8,9 @@ export default function CitationViewer({ citation, onClose }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
 
+  // Older answers have no claims
+  const claims = citation.claims ?? [];
+
   // Load the full section each time a different citation is clicked
   useEffect(() => {
     setDetail(null);
@@ -34,9 +37,21 @@ export default function CitationViewer({ citation, onClose }) {
         </button>
       </div>
 
-      <p className="text-sm font-medium">{citation.file_name}</p>
+      <p className="text-sm font-medium">{citation.file_name.split("/").pop()}</p>
       <p className="mb-1 text-xs text-gray-500">{citation.section_path}</p>
       <p className="mb-3 text-xs text-gray-500">Page {citation.page_number}</p>
+
+      {/* The statements of the answer that this source was checked against */}
+      {claims.length > 0 && (
+        <div className="mb-4 rounded border border-green-200 bg-green-50 p-3">
+          <p className="mb-1 text-xs font-medium text-green-800">This source supports:</p>
+          <ul className="list-disc space-y-1 pl-4 text-xs text-green-900">
+            {claims.map((claim, index) => (
+              <li key={index}>{claim}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* This is the exact text the answer was based on */}
       <div className="mb-4 whitespace-pre-wrap rounded border border-yellow-300 bg-yellow-50 p-3 text-sm">

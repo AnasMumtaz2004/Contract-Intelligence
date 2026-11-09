@@ -1,17 +1,19 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db
+from app.ingestion.metadata import DOCUMENT_TYPES, suggest_metadata
 from app.ingestion.pipeline import compute_file_hash, run_ingestion, validate_pdf_file
 from app.models import Chunk, Contract, Document, User
 from app.routes.contracts import find_or_create_contract
-from app.schemas import ChunkOut, DocumentOut
+from app.schemas import ChunkOut, DocumentOut, MetadataSuggestion, MetadataUpdate
 from app.storage import delete_file, save_file
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-DOCUMENT_TYPES = ["MSA", "NDA", "SOW", "Amendment", "Exhibit", "Other"]
+# Documents uploaded without a vendor go here until the user confirms the metadata
+UNASSIGNED_VENDOR = "Unassigned"
 
 
 def make_document_out(document: Document, vendor_name: str) -> DocumentOut:
@@ -26,6 +28,10 @@ def make_document_out(document: Document, vendor_name: str) -> DocumentOut:
         error_message=document.error_message,
         page_count=document.page_count,
         chunk_count=document.chunk_count,
+        effective_date=document.effective_date,
+        parent_document_id=document.parent_document_id,
+        parser_used=document.parser_used,
+        parse_quality=document.parse_quality,
         created_at=document.created_at,
     )
 
@@ -42,8 +48,8 @@ async def get_document_for_user(db: AsyncSession, document_id: int, user_id: int
 async def upload_document(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    vendor_name: str = Form(...),
-    document_type: str = Form(...),
+    vendor_name: str = Form(""),
+    document_type: str = Form("Other"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -58,8 +64,10 @@ async def upload_document(
     if document_type not in DOCUMENT_TYPES:
         raise HTTPException(status_code=400, detail="Unknown document type")
 
-    if vendor_name.strip() == "":
-        raise HTTPException(status_code=400, detail="Vendor name is required")
+    # The vendor can be left empty. The user confirms it after processing.
+    vendor_name = vendor_name.strip()
+    if vendor_name == "":
+        vendor_name = UNASSIGNED_VENDOR
 
     # Stop the same file from being uploaded twice
     file_hash = compute_file_hash(file_bytes)
@@ -121,6 +129,86 @@ async def get_document(
     """Return one document. The frontend uses this to check processing status."""
     document = await get_document_for_user(db, document_id, user.id)
     contract = await db.get(Contract, document.contract_id)
+    return make_document_out(document, contract.vendor_name)
+
+
+@router.get("/{document_id}/suggestions", response_model=MetadataSuggestion)
+async def get_suggestions(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Ask the LLM to guess the vendor, type and effective date of a processed document."""
+    document = await get_document_for_user(db, document_id, user.id)
+    contract = await db.get(Contract, document.contract_id)
+
+    current_vendor = contract.vendor_name
+    if current_vendor == UNASSIGNED_VENDOR:
+        current_vendor = ""
+
+    # If the LLM cannot help, the form simply starts with the current values
+    fallback = MetadataSuggestion(
+        vendor_name=current_vendor,
+        document_type=document.document_type,
+        effective_date=document.effective_date,
+    )
+    if document.status != "ready":
+        return fallback
+
+    # An LLM call can fail (for example a rate limit), and that must not break the upload flow
+    try:
+        suggestion = await suggest_metadata(db, document.id)
+    except Exception:
+        return fallback
+
+    # Keep what the user already entered
+    if current_vendor != "":
+        suggestion["vendor_name"] = current_vendor
+    if document.document_type != "Other":
+        suggestion["document_type"] = document.document_type
+    if document.effective_date is not None:
+        suggestion["effective_date"] = document.effective_date
+
+    return MetadataSuggestion(**suggestion)
+
+
+@router.patch("/{document_id}/metadata", response_model=DocumentOut)
+async def update_metadata(
+    document_id: int,
+    data: MetadataUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Save the metadata that the user confirmed: vendor, type, effective date and parent document."""
+    document = await get_document_for_user(db, document_id, user.id)
+
+    if data.document_type not in DOCUMENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unknown document type")
+
+    contract = await find_or_create_contract(db, user.id, data.vendor_name)
+
+    parent_id = data.parent_document_id
+    if parent_id is not None:
+        if parent_id == document.id:
+            raise HTTPException(status_code=400, detail="A document cannot be its own parent")
+
+        parent = await get_document_for_user(db, parent_id, user.id)
+        if parent.contract_id != contract.id:
+            raise HTTPException(status_code=400, detail="The parent document must belong to the same contract")
+        if parent.parent_document_id == document.id:
+            raise HTTPException(status_code=400, detail="The parent document points back to this document")
+
+    # Moving a document to another contract also moves its chunks
+    if contract.id != document.contract_id:
+        await db.execute(update(Chunk).where(Chunk.document_id == document.id).values(contract_id=contract.id))
+        document.contract_id = contract.id
+
+    document.document_type = data.document_type
+    document.effective_date = data.effective_date
+    document.parent_document_id = parent_id
+
+    await db.commit()
+    await db.refresh(document)
     return make_document_out(document, contract.vendor_name)
 
 

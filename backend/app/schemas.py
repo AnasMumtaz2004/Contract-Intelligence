@@ -1,5 +1,4 @@
-from datetime import datetime
-
+from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -64,6 +63,10 @@ class DocumentOut(BaseModel):
     error_message: str | None
     page_count: int
     chunk_count: int
+    effective_date: date | None
+    parent_document_id: int | None
+    parser_used: str
+    parse_quality: float | None
     created_at: datetime
 
 
@@ -113,6 +116,7 @@ class CitationOut(BaseModel):
     section_path: str
     page_number: int
     content: str
+    claims: list[str] = []
 
 
 class AnswerOut(BaseModel):
@@ -122,6 +126,7 @@ class AnswerOut(BaseModel):
     answer: str
     status: str
     citations: list[CitationOut]
+    warning: str = ""
 
 
 class MessageOut(BaseModel):
@@ -131,6 +136,7 @@ class MessageOut(BaseModel):
     role: str
     content: str
     status: str | None
+    warning: str | None = None
     citations: list[CitationOut]
     created_at: datetime
 
@@ -144,3 +150,19 @@ class ChunkDetailOut(BaseModel):
     page_number: int
     content: str
     section_text: str
+
+class MetadataSuggestion(BaseModel):
+    """What the LLM thinks the vendor, type and date of a document are."""
+
+    vendor_name: str
+    document_type: str
+    effective_date: date | None
+
+
+class MetadataUpdate(BaseModel):
+    """The metadata after the user has checked it."""
+
+    vendor_name: str = Field(min_length=1, max_length=255)
+    document_type: str
+    effective_date: date | None = None
+    parent_document_id: int | None = None

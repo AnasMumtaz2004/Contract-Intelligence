@@ -1,6 +1,6 @@
 import pymupdf
 
-from app.ingestion.parsing import clean_lines, count_words, join_label_lines, parse_pdf
+from app.ingestion.parsing import clean_lines, count_words, join_label_lines, parse_pdf, parse_with_router
 
 
 def test_clean_lines_removes_blanks_and_page_numbers():
@@ -51,3 +51,20 @@ def test_count_words_adds_up_all_lines():
         {"page_number": 2, "lines": ["six"]},
     ]
     assert count_words(pages) == 6
+
+def test_router_uses_the_plain_text_path_for_a_normal_page(tmp_path):
+    """A normal text page needs no OCR and no table reading."""
+    pdf_path = tmp_path / "normal.pdf"
+
+    pdf = pymupdf.open()
+    page = pdf.new_page()
+    text = "The supplier shall deliver the goods on time and in good condition. " * 6
+    page.insert_textbox(pymupdf.Rect(72, 72, 500, 500), text)
+    pdf.save(str(pdf_path))
+    pdf.close()
+
+    result = parse_with_router(str(pdf_path))
+
+    assert result["parser_used"] == "pymupdf"
+    assert result["parse_quality"] == 1.0
+    assert result["ocr_error"] == ""

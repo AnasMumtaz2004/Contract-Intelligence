@@ -5,11 +5,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.graph import stream_agent
 from app.database import AsyncSessionLocal
 from app.deps import get_current_user, get_db
 from app.models import Chunk, Citation, Contract, Conversation, Document, Message, Section, User
-from app.rag import generate_answer
-from app.retrieval.search import hybrid_search
+from app.rag import NOT_FOUND_TEXT
 from app.schemas import (
     AnswerOut,
     AskRequest,
@@ -98,6 +98,11 @@ async def list_messages(
 
     citations_by_message = {}
     for citation, chunk, file_name in citation_result.all():
+        # Older answers have no claims
+        claims = []
+        if citation.claims_json:
+            claims = json.loads(citation.claims_json)
+
         citation_out = CitationOut(
             number=citation.number,
             chunk_id=chunk.id,
@@ -106,6 +111,7 @@ async def list_messages(
             section_path=chunk.section_path,
             page_number=chunk.page_number,
             content=chunk.content,
+            claims=claims,
         )
         if citation.message_id not in citations_by_message:
             citations_by_message[citation.message_id] = []
@@ -118,6 +124,7 @@ async def list_messages(
             role=message.role,
             content=message.content,
             status=message.status,
+            warning=message.warning,
             citations=citations_by_message.get(message.id, []),
             created_at=message.created_at,
         )
@@ -126,7 +133,7 @@ async def list_messages(
 
 
 async def stream_answer(conversation_id: int, user_id: int, contract_id: int | None, question: str):
-    """Search, ask the LLM, save everything, and send progress events to the browser."""
+    """Run the agent, save the answer, and send every step and the final answer to the browser."""
     # The stream needs its own session, because the request session may close early
     async with AsyncSessionLocal() as db:
         try:
@@ -134,27 +141,60 @@ async def stream_answer(conversation_id: int, user_id: int, contract_id: int | N
             db.add(user_message)
             await db.commit()
 
-            yield sse_event("status", {"text": "Searching the contracts..."})
-            chunks = await hybrid_search(db, user_id, question, contract_id=contract_id)
+            # These ids go into the LangSmith trace, so a run can be found from a message
+            trace_info = {
+                "message_id": user_message.id,
+                "conversation_id": conversation_id,
+                "pipeline": "chat",
+            }
 
-            yield sse_event("status", {"text": "Writing the answer..."})
-            result = await generate_answer(question, chunks)
+            final_state = {}
+            steps_sent = 0
+            async for state in stream_agent(db, user_id, contract_id, question, trace_info):
+                final_state = state
+
+                # Every new step is sent to the browser as soon as it exists
+                steps = state.get("steps", [])
+                while steps_sent < len(steps):
+                    yield sse_event("step", {"text": steps[steps_sent]})
+                    steps_sent += 1
+
+            chunks = final_state.get("chunks", [])
+            cited_numbers = final_state.get("cited_numbers", [])
+            claim_map = final_state.get("claim_map", {})
+            status = final_state.get("status", "not_found")
+            warning = final_state.get("warning", "")
+            answer_text = final_state.get("answer", NOT_FOUND_TEXT)
+
+            saved_warning = None
+            if warning != "":
+                saved_warning = warning
 
             assistant_message = Message(
                 conversation_id=conversation_id,
                 role="assistant",
-                content=result["answer"],
-                status=result["status"],
+                content=answer_text,
+                status=status,
+                warning=saved_warning,
             )
             db.add(assistant_message)
             # flush gives the message an id that the citations need
             await db.flush()
 
             citations_out = []
-            for number in result["cited_numbers"]:
+            for number in cited_numbers:
                 # Source [1] is the first chunk, so the list index is number - 1
                 chunk = chunks[number - 1]
-                db.add(Citation(message_id=assistant_message.id, chunk_id=chunk["chunk_id"], number=number))
+                claims = claim_map.get(number, [])
+
+                db.add(
+                    Citation(
+                        message_id=assistant_message.id,
+                        chunk_id=chunk["chunk_id"],
+                        number=number,
+                        claims_json=json.dumps(claims),
+                    )
+                )
                 citation_out = CitationOut(
                     number=number,
                     chunk_id=chunk["chunk_id"],
@@ -163,6 +203,7 @@ async def stream_answer(conversation_id: int, user_id: int, contract_id: int | N
                     section_path=chunk["section_path"],
                     page_number=chunk["page_number"],
                     content=chunk["content"],
+                    claims=claims,
                 )
                 citations_out.append(citation_out)
 
@@ -170,9 +211,10 @@ async def stream_answer(conversation_id: int, user_id: int, contract_id: int | N
 
             answer = AnswerOut(
                 message_id=assistant_message.id,
-                answer=result["answer"],
-                status=result["status"],
+                answer=answer_text,
+                status=status,
                 citations=citations_out,
+                warning=warning,
             )
             yield sse_event("answer", answer.model_dump(mode="json"))
 
@@ -191,7 +233,7 @@ async def ask_question(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Answer a question and stream progress events (server-sent events)."""
+    """Answer a question with the agent and stream its steps (server-sent events)."""
     conversation = await get_conversation_for_user(db, conversation_id, user.id)
 
     generator = stream_answer(conversation.id, user.id, conversation.contract_id, data.question.strip())

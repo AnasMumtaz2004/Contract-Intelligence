@@ -205,3 +205,18 @@ export async function askQuestion(conversationId, question, onEvent) {
     }
   }
 }
+
+
+/** Ask the LLM to guess the vendor, type and date of a processed document. */
+export async function getSuggestions(documentId) {
+  return request("/documents/" + documentId + "/suggestions");
+}
+
+/** Save the vendor, type, date and parent document that the user confirmed. */
+export async function updateMetadata(documentId, metadata) {
+  return request("/documents/" + documentId + "/metadata", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(metadata),
+  });
+}

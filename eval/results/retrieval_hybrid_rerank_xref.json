@@ -1,0 +1,474 @@
+[
+  {
+    "id": "q001",
+    "level": 1,
+    "vendor_name": "Creditcardscominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q002",
+    "level": 2,
+    "vendor_name": "Creditcardscominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q003",
+    "level": 1,
+    "vendor_name": "Creditcardscominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q004",
+    "level": 2,
+    "vendor_name": "Creditcardscominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q005",
+    "level": 7,
+    "vendor_name": "Creditcardscominc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q006",
+    "level": 7,
+    "vendor_name": "Afsalabancorpinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q009",
+    "level": 1,
+    "vendor_name": "Afsalabancorpinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q010",
+    "level": 2,
+    "vendor_name": "Afsalabancorpinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q011",
+    "level": 1,
+    "vendor_name": "2Themartcominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q012",
+    "level": 2,
+    "vendor_name": "2Themartcominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q013",
+    "level": 7,
+    "vendor_name": "2Themartcominc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q016",
+    "level": 7,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q017",
+    "level": 1,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q018",
+    "level": 2,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q019",
+    "level": 1,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q020",
+    "level": 2,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q023",
+    "level": 7,
+    "vendor_name": "Coralgoldresources Ltd",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q024",
+    "level": 1,
+    "vendor_name": "Coralgoldresources Ltd",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q025",
+    "level": 2,
+    "vendor_name": "Coralgoldresources Ltd",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q026",
+    "level": 7,
+    "vendor_name": "Arcaustreasuryfund",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q029",
+    "level": 1,
+    "vendor_name": "Arcaustreasuryfund",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q030",
+    "level": 2,
+    "vendor_name": "Arcaustreasuryfund",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q034",
+    "level": 1,
+    "vendor_name": "Accurayinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q035",
+    "level": 2,
+    "vendor_name": "Accurayinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q036",
+    "level": 1,
+    "vendor_name": "Berkshirehillsbancorpinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q037",
+    "level": 2,
+    "vendor_name": "Berkshirehillsbancorpinc",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q038",
+    "level": 1,
+    "vendor_name": "Berkshirehillsbancorpinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "q039",
+    "level": 2,
+    "vendor_name": "Berkshirehillsbancorpinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "a001",
+    "level": 5,
+    "vendor_name": "Adamsgolfinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": true
+  },
+  {
+    "id": "a003",
+    "level": 5,
+    "vendor_name": "Airtechinternationalgroupinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": true
+  },
+  {
+    "id": "a004",
+    "level": 5,
+    "vendor_name": "Airtechinternationalgroupinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "a005",
+    "level": 5,
+    "vendor_name": "Alliedesportsentertainmentinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": true
+  },
+  {
+    "id": "a006",
+    "level": 5,
+    "vendor_name": "Alliedesportsentertainmentinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "a007",
+    "level": 5,
+    "vendor_name": "Adianutrition Inc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": true
+  },
+  {
+    "id": "a008",
+    "level": 5,
+    "vendor_name": "Adianutrition Inc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c001",
+    "level": 1,
+    "vendor_name": "Creditcardscominc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c002",
+    "level": 2,
+    "vendor_name": "Creditcardscominc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c003",
+    "level": 1,
+    "vendor_name": "Creditcardscominc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c004",
+    "level": 2,
+    "vendor_name": "Creditcardscominc Scan",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c005",
+    "level": 7,
+    "vendor_name": "Creditcardscominc Scan",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c011",
+    "level": 1,
+    "vendor_name": "2Themartcominc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c012",
+    "level": 2,
+    "vendor_name": "2Themartcominc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c013",
+    "level": 7,
+    "vendor_name": "2Themartcominc Scan",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c016",
+    "level": 7,
+    "vendor_name": "Allisontransmissionholdingsinc Scan",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c017",
+    "level": 1,
+    "vendor_name": "Allisontransmissionholdingsinc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c018",
+    "level": 2,
+    "vendor_name": "Allisontransmissionholdingsinc Scan",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c019",
+    "level": 1,
+    "vendor_name": "Allisontransmissionholdingsinc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "c020",
+    "level": 2,
+    "vendor_name": "Allisontransmissionholdingsinc Scan",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s001",
+    "level": 4,
+    "vendor_name": "Creditcardscominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s002",
+    "level": 6,
+    "vendor_name": "Creditcardscominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s004",
+    "level": 4,
+    "vendor_name": "2Themartcominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s005",
+    "level": 6,
+    "vendor_name": "2Themartcominc",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s006",
+    "level": 6,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s007",
+    "level": 3,
+    "vendor_name": "Allisontransmissionholdingsinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s010",
+    "level": 4,
+    "vendor_name": "Accurayinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s011",
+    "level": 6,
+    "vendor_name": "Accurayinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s012",
+    "level": 3,
+    "vendor_name": "Accurayinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s013",
+    "level": 4,
+    "vendor_name": "Berkshirehillsbancorpinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "s014",
+    "level": 6,
+    "vendor_name": "Berkshirehillsbancorpinc",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  }
+]

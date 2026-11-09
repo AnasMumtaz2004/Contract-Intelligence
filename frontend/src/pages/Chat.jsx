@@ -6,12 +6,14 @@ import {
   createConversation,
   getContracts,
   getConversations,
+  getDocuments,
   getMessages,
 } from "../api";
+import AgentProgress from "../components/AgentProgress";
 import AnswerCard from "../components/AnswerCard";
 import CitationViewer from "../components/CitationViewer";
 import MessageInput from "../components/MessageInput";
-import { Button, Spinner } from "../components/ui";
+import { Button } from "../components/ui";
 
 /** The chat page: conversation list, message thread, and a panel for the clicked source. */
 export default function Chat() {
@@ -19,6 +21,8 @@ export default function Chat() {
   const bottomRef = useRef(null);
 
   const [contracts, setContracts] = useState([]);
+  // How many documents each contract has, like { 3: 2 }
+  const [documentCounts, setDocumentCounts] = useState({});
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -26,7 +30,8 @@ export default function Chat() {
   const [scopeContractId, setScopeContractId] = useState("");
   const [selectedCitation, setSelectedCitation] = useState(null);
   const [isAsking, setIsAsking] = useState(false);
-  const [progressText, setProgressText] = useState("");
+  // The steps the agent has finished for the current question
+  const [progressSteps, setProgressSteps] = useState([]);
   const [error, setError] = useState("");
 
   /** Load the conversation list from the backend. */
@@ -39,12 +44,22 @@ export default function Chat() {
     }
   }
 
-  // Load the contracts and conversations once when the page opens
+  // Load the contracts, their document counts and the conversations once when the page opens
   useEffect(() => {
     async function loadStartData() {
       try {
         const contractData = await getContracts();
         setContracts(contractData);
+
+        const documentData = await getDocuments();
+        const counts = {};
+        for (const item of documentData) {
+          if (!(item.contract_id in counts)) {
+            counts[item.contract_id] = 0;
+          }
+          counts[item.contract_id] += 1;
+        }
+        setDocumentCounts(counts);
       } catch (err) {
         setError(err.message);
       }
@@ -59,7 +74,7 @@ export default function Chat() {
     if (bottomRef.current !== null) {
       bottomRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, progressText]);
+  }, [messages, progressSteps]);
 
   /** Open an old conversation and load its messages. */
   async function openConversation(conversation) {
@@ -83,6 +98,16 @@ export default function Chat() {
     setError("");
   }
 
+  /** Write a contract name with its number of documents, like "Acme Corp (3 documents)". */
+  function describeContract(contract) {
+    const count = documentCounts[contract.id] ?? 0;
+    let word = "documents";
+    if (count === 1) {
+      word = "document";
+    }
+    return contract.vendor_name + " (" + count + " " + word + ")";
+  }
+
   /** Get a readable name for the scope of a conversation. */
   function getScopeLabel(contractId) {
     if (contractId === null) {
@@ -92,13 +117,14 @@ export default function Chat() {
     if (contract === undefined) {
       return "One contract";
     }
-    return contract.vendor_name;
+    return describeContract(contract);
   }
 
   /** React to one event from the server. */
   function handleEvent(eventName, data) {
-    if (eventName === "status") {
-      setProgressText(data.text);
+    if (eventName === "step") {
+      // The function form adds to the newest list of steps
+      setProgressSteps((oldSteps) => [...oldSteps, data.text]);
     }
 
     if (eventName === "answer") {
@@ -107,9 +133,9 @@ export default function Chat() {
         role: "assistant",
         content: data.answer,
         status: data.status,
+        warning: data.warning,
         citations: data.citations,
       };
-      // The function form adds to the newest list of messages
       setMessages((oldMessages) => [...oldMessages, assistantMessage]);
     }
 
@@ -122,7 +148,7 @@ export default function Chat() {
   async function handleSend(question) {
     setError("");
     setIsAsking(true);
-    setProgressText("Starting...");
+    setProgressSteps([]);
 
     try {
       let conversation = activeConversation;
@@ -147,7 +173,7 @@ export default function Chat() {
     }
 
     setIsAsking(false);
-    setProgressText("");
+    setProgressSteps([]);
     loadConversations();
   }
 
@@ -194,10 +220,11 @@ export default function Chat() {
                 <option value="">All contracts</option>
                 {contracts.map((contract) => (
                   <option key={contract.id} value={contract.id}>
-                    {contract.vendor_name}
+                    {describeContract(contract)}
                   </option>
                 ))}
               </select>
+              <span className="text-xs text-gray-500">A contract includes its amendments.</span>
             </div>
           ) : (
             <p className="text-sm text-gray-600">Search in: {getScopeLabel(activeConversation.contract_id)}</p>
@@ -224,12 +251,7 @@ export default function Chat() {
             return <AnswerCard key={message.id} message={message} onCitationClick={setSelectedCitation} />;
           })}
 
-          {isAsking && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Spinner />
-              <span>{progressText}</span>
-            </div>
-          )}
+          {isAsking && <AgentProgress steps={progressSteps} />}
           {error !== "" && <p className="text-sm text-red-600">{error}</p>}
           <div ref={bottomRef} />
         </div>

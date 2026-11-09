@@ -8,6 +8,8 @@ const BADGE_COLORS = {
   failed: "bg-red-100 text-red-800",
   found: "bg-green-100 text-green-800",
   not_found: "bg-yellow-100 text-yellow-800",
+  partial: "bg-amber-100 text-amber-800",
+  conflicting: "bg-red-100 text-red-800",
 };
 
 /** A button with a primary (blue), secondary (gray) or danger (red) look. */

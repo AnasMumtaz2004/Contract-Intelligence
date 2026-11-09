@@ -4,7 +4,15 @@ from app.retrieval.search import build_keyword_query, merge_with_rrf
 
 def make_item(chunk_id: int) -> dict:
     """Make a small fake search result."""
-    return {"chunk_id": chunk_id, "file_name": "a.pdf", "section_path": "1 Term", "page_number": 1, "content": "text"}
+    return {
+        "chunk_id": chunk_id,
+        "file_name": "a.pdf",
+        "document_type": "Other",
+        "effective_date": "",
+        "section_path": "1 Term",
+        "page_number": 1,
+        "content": "text",
+    }
 
 
 def test_keyword_query_drops_short_and_repeated_words():
@@ -39,7 +47,19 @@ def test_find_cited_numbers_reads_single_and_grouped_numbers():
 
 
 def test_build_context_numbers_the_sources():
-    """Each chunk should get a number, a file name, a section path and a page."""
+    """Each chunk should get a number, a file name, a document type, a section path and a page."""
     context = build_context([make_item(1), make_item(2)])
-    assert "[1] a.pdf | 1 Term | page 1" in context
-    assert "[2] a.pdf | 1 Term | page 1" in context
+    assert "[1] a.pdf | Other | 1 Term | page 1" in context
+    assert "[2] a.pdf | Other | 1 Term | page 1" in context
+
+
+def test_build_context_shows_the_effective_date_and_cross_references():
+    """An amendment shows its date, and a cross-reference chunk is marked."""
+    item = make_item(1)
+    item["document_type"] = "Amendment"
+    item["effective_date"] = "2024-03-01"
+    item["file_name"] = "synthetic/amendments/x_amendment_1.pdf"
+    item["via_cross_reference"] = True
+
+    context = build_context([item])
+    assert "[1] x_amendment_1.pdf | Amendment, effective 2024-03-01 | 1 Term | page 1 | referenced section" in context

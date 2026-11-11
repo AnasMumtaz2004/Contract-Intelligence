@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { loginUser, registerUser } from "../api";
 import { Button } from "../components/ui";
@@ -33,28 +33,58 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-lg bg-white p-6 shadow">
-        <h1 className="mb-1 text-xl font-semibold">Contract Intelligence</h1>
-        <p className="mb-6 text-sm text-gray-600">
-          {isRegisterMode ? "Create an account" : "Log in to your account"}
+    <div className="flex min-h-screen flex-col items-center justify-center gap-10 p-6 md:flex-row md:justify-between md:px-24">
+      {/* Left: title + tagline */}
+      <div className="w-full max-w-xl">
+        <h1 className="mb-3 text-6xl font-bold">CONTRACT INTELLIGENCE</h1>
+        <p className="text-lg text-gray-600">
+          Ask questions about your contracts and get clear, source-backed answers.
         </p>
+      </div>
 
-        <label className="mb-1 block text-sm font-medium">Email</label>
+      {/* Right: form card */}
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-lg border border-gray-500 bg-white p-10 shadow-lg"
+      >
+        {/* Tabs */}
+        <div className="mb-9 flex gap-8 border-b border-gray-400">
+          <button
+            type="button"
+            onClick={() => setIsRegisterMode(false)}
+            className={`-mb-px border-b-2 px-2 pb-3 text-sm ${
+              !isRegisterMode ? "border-blue-600 font-semibold" : "border-transparent"
+            }`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsRegisterMode(true)}
+            className={`-mb-px border-b-2 px-2 pb-3 text-sm ${
+              isRegisterMode ? "border-blue-600 font-semibold" : "border-transparent"
+            }`}
+          >
+            Create account
+          </button>
+        </div>
+
+        <label className="mb-2 block text-xs font-semibold uppercase">Email</label>
         <input
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          placeholder="you@domain.com"
+          className="mb-6 w-full border border-gray-500 px-3 py-3 text-sm"
           required
         />
 
-        <label className="mb-1 block text-sm font-medium">Password</label>
+        <label className="mb-2 block text-xs font-semibold uppercase">Password</label>
         <input
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mb-1 w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          className="mb-1 w-full border border-gray-500 px-3 py-3 text-sm"
           minLength={8}
           maxLength={72}
           required
@@ -63,19 +93,16 @@ export default function Login() {
 
         {error !== "" && <p className="my-3 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-4">
+        <div className="mt-7 w-full [&>button]:w-full [&>button]:py-3">
           <Button type="submit" disabled={isLoading}>
-            {isRegisterMode ? "Register" : "Log in"}
+            {isRegisterMode ? "Create account" : "Sign in"}
           </Button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsRegisterMode(!isRegisterMode)}
-          className="mt-4 text-sm text-blue-600 hover:underline"
-        >
-          {isRegisterMode ? "I already have an account" : "Create a new account"}
-        </button>
+        {/* Footer */}
+        <div className="mt-9 border-t border-gray-400 pt-5">
+         
+        </div>
       </form>
     </div>
   );

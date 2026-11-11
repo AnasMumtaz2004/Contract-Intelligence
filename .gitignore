@@ -1,46 +1,42 @@
-# Python
-__pycache__/
-*.py[cod]
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Uploaded files
+uploads/
+
+# Python generated files
 .venv/
 venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
 .pytest_cache/
 .pytestcache/
-*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# Secrets and local data
-.env
-uploads/
-backend/uploads/
-
-# Alembic
-alembic/
-backend/alembic/
-alembic.ini
-backend/alembic.ini
-
-# Model downloads and cache
+# Model cache
 .cache/
 
-# Frontend
+# Frontend dependencies and builds
 node_modules/
 dist/
+dist-ssr/
 
-# Editor
+# Logs and local files
+*.log
 .idea/
 .vscode/
 .DS_Store
+Thumbs.db
+Desktop.ini
 
-# Backend environment
+
+eval/results/
+**/__pycache__/
 backend/Scripts/
-
-# Docker
-dockerfiles/
-docker-compose.yml
-
-# Build and make files
-Makefile
-makefile
-
-# Evaluation and data
-evals/
-data/
+backend/tests

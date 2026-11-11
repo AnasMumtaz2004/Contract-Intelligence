@@ -28,7 +28,7 @@ PAUSE_SECONDS = 4
 MAX_FAILURES_IN_A_ROW = 3
 
 # One question may take at most this long, with both LLM providers included
-QUESTION_TIMEOUT_SECONDS = 300
+QUESTION_TIMEOUT_SECONDS = 150
 
 # A question counts as a "context hit" if this share of the expected clause appears in the retrieved text
 HIT_THRESHOLD = 0.5
@@ -182,43 +182,7 @@ async def generate_answers(
         await asyncio.sleep(PAUSE_SECONDS)
 
 
-async def generate_all(questions: list[dict], email: str, pipeline_names: list[str], refresh: bool) -> dict:
-    """Generate answers for every pipeline. Answers that are already saved are reused."""
-    all_results = {}
 
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(select(User).where(User.email == email.lower()))
-        user = result.scalar_one_or_none()
-        if user is None:
-            sys.exit("User not found: " + email)
-
-        for pipeline_name in pipeline_names:
-            answers_file = RESULTS_FOLDER / ("answers_" + pipeline_name + ".json")
-
-            # With --refresh the saved answers are ignored, and the file only keeps the new ones
-            saved_by_id = {}
-            if answers_file.exists() and not refresh:
-                for item in load_json(answers_file):
-                    saved_by_id[item["id"]] = item
-
-            missing_questions = []
-            for question in questions:
-                if question["id"] not in saved_by_id:
-                    missing_questions.append(question)
-
-            if len(missing_questions) > 0:
-                await generate_answers(db, user.id, pipeline_name, missing_questions, answers_file, saved_by_id)
-            else:
-                print("Using saved answers for", pipeline_name)
-
-            selected = []
-            for question in questions:
-                if question["id"] in saved_by_id:
-                    selected.append(saved_by_id[question["id"]])
-            all_results[pipeline_name] = selected
-
-    await engine.dispose()
-    return all_results
 
 
 def clean_score(value):
@@ -290,8 +254,86 @@ def score_with_ragas(items: list[dict]) -> list[dict]:
     return scored
 
 
-def score_all(all_results: dict, refresh: bool) -> None:
+
+
+async def generate_all(
+    questions: list[dict],
+    email: str,
+    pipeline_names: list[str],
+    refresh: bool,
+    max_new: int,
+) -> dict:
+    """Generate answers for every pipeline. Answers that are already saved are reused."""
+    all_results = {}
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(User).where(User.email == email.lower()))
+        user = result.scalar_one_or_none()
+        if user is None:
+            sys.exit("User not found: " + email)
+
+        for pipeline_name in pipeline_names:
+            answers_file = RESULTS_FOLDER / ("answers_" + pipeline_name + ".json")
+
+            # With --refresh the saved answers are ignored, and the file only keeps the new ones
+            saved_by_id = {}
+            if answers_file.exists() and not refresh:
+                for item in load_json(answers_file):
+                    saved_by_id[item["id"]] = item
+
+            missing_questions = []
+            for question in questions:
+                if question["id"] not in saved_by_id:
+                    missing_questions.append(question)
+
+            # A daily quota may allow only a part of the work, so a run can be limited to a few questions
+            if max_new > 0:
+                missing_questions = missing_questions[:max_new]
+
+            if len(missing_questions) > 0:
+                await generate_answers(db, user.id, pipeline_name, missing_questions, answers_file, saved_by_id)
+            else:
+                print("Using saved answers for", pipeline_name)
+
+            selected = []
+            for question in questions:
+                if question["id"] in saved_by_id:
+                    selected.append(saved_by_id[question["id"]])
+            all_results[pipeline_name] = selected
+
+    await engine.dispose()
+    return all_results
+
+
+def pick_sample_ids(all_results: dict, max_score: int) -> set:
+    """Pick the questions that every pipeline has answered, so all pipelines are scored on the same ones."""
+    common_ids = None
+    for results in all_results.values():
+        ids = set()
+        for item in results:
+            if item["answerable"]:
+                ids.add(item["id"])
+        if common_ids is None:
+            common_ids = ids
+        else:
+            common_ids = common_ids & ids
+
+    if common_ids is None:
+        return set()
+
+    ordered_ids = sorted(common_ids)
+    if max_score > 0:
+        # A fixed seed gives the same sample every time, and the sample mixes all kinds of questions
+        import random
+
+        ordered_ids = random.Random(7).sample(ordered_ids, min(max_score, len(ordered_ids)))
+    return set(ordered_ids)
+
+
+def score_all(all_results: dict, refresh: bool, max_score: int) -> None:
     """Score the answers of every pipeline. Questions that already have scores are skipped."""
+    sample_ids = pick_sample_ids(all_results, max_score)
+
     for pipeline_name, results in all_results.items():
         scores_file = RESULTS_FOLDER / ("scores_" + pipeline_name + ".json")
 
@@ -305,7 +347,9 @@ def score_all(all_results: dict, refresh: bool) -> None:
         for item in results:
             if item["id"] in saved_by_id:
                 continue
-            if item["answerable"] and item["status"] == "found" and len(item["contexts"]) > 0:
+            if max_score > 0 and item["id"] not in sample_ids:
+                continue
+            if item["answerable"] and item["status"] != "not_found" and len(item["contexts"]) > 0:
                 items_to_score.append(item)
 
         if len(items_to_score) == 0:
@@ -325,11 +369,15 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="Only use the first N questions (0 = all)")
     parser.add_argument("--levels", type=int, nargs="*", default=[], help="Only these levels, like: --levels 5 7")
     parser.add_argument("--pipelines", nargs="*", default=[], help="Only these pipelines (default: all)")
+    parser.add_argument("--max-new", type=int, default=0, help="Generate at most N new answers per pipeline in this run")
+    parser.add_argument("--max-score", type=int, default=0, help="Score at most N questions with Ragas (the same ones for every pipeline)")
+    parser.add_argument("--skip-scanned", action="store_true", help="Leave out the questions about scanned copies")
     parser.add_argument("--refresh", action="store_true", help="Ignore saved answers and scores")
     parser.add_argument("--skip-ragas", action="store_true", help="Skip the Ragas scoring (saves LLM quota)")
     args = parser.parse_args()
+
     setup_tracing()
-    
+
     pipeline_names = args.pipelines
     if len(pipeline_names) == 0:
         pipeline_names = list(PIPELINES.keys())
@@ -338,18 +386,24 @@ def main() -> None:
             sys.exit("Unknown pipeline: " + name + ". Choose from: " + ", ".join(PIPELINES.keys()))
 
     questions = load_questions(args.limit, args.levels)
+    if args.skip_scanned:
+        digital_questions = []
+        for question in questions:
+            if not question["vendor_name"].endswith(" Scan"):
+                digital_questions.append(question)
+        questions = digital_questions
     print("Questions:", len(questions), "| pipelines:", pipeline_names)
 
     # All database work happens inside one asyncio.run call.
     # Ragas runs afterwards, because it starts its own event loop.
-    all_results = asyncio.run(generate_all(questions, args.email, pipeline_names, args.refresh))
+    all_results = asyncio.run(generate_all(questions, args.email, pipeline_names, args.refresh, args.max_new))
 
     if args.skip_ragas:
-        print("Skipped Ragas. Run report.py to see the free metrics.")
+        print("Skipped Ragas. Run make_summary.py to see the tables.")
         return
 
-    score_all(all_results, args.refresh)
-    print("Done. Run report.py to see the tables.")
+    score_all(all_results, args.refresh, args.max_score)
+    print("Done. Run make_summary.py to see the tables.")
 
 
 if __name__ == "__main__":

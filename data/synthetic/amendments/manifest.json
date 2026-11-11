@@ -1,0 +1,89 @@
+[
+  {
+    "family": 1,
+    "plan": "governing_law_single",
+    "vendor_name": "Adamsgolfinc",
+    "base_file": "endorsement_agreement_adamsgolfinc.pdf",
+    "amendments": [
+      {
+        "file_name": "adamsgolfinc_amendment_1.pdf",
+        "number": 1,
+        "effective_date": "2024-03-01",
+        "category": "Governing Law",
+        "kind": "replace",
+        "section_label": "Section 5",
+        "old_clause": "This Agreement shall be governed and construed according to the laws of the State of Kansas.",
+        "new_clause": "This Agreement shall be governed and construed according to the laws of the State of New York.",
+        "summary": "the laws of the State of New York"
+      }
+    ]
+  },
+  {
+    "family": 2,
+    "plan": "governing_law_chain",
+    "vendor_name": "Airtechinternationalgroupinc",
+    "base_file": "franchise_airtechinternationalgroupinc.pdf",
+    "amendments": [
+      {
+        "file_name": "airtechinternationalgroupinc_amendment_1.pdf",
+        "number": 1,
+        "effective_date": "2024-03-01",
+        "category": "Governing Law",
+        "kind": "replace",
+        "section_label": "Section 18.07",
+        "old_clause": "This Agreement takes effect upon its acceptance and execution by AIRSOPURE in the State of Texas, and shall be interpreted and construed under the laws of the State of Texas.",
+        "new_clause": "This Agreement takes effect upon its acceptance and execution by AIRSOPURE in the State of Texas, and shall be interpreted and construed under the laws of the State of New York.",
+        "summary": "the laws of the State of New York"
+      },
+      {
+        "file_name": "airtechinternationalgroupinc_amendment_2.pdf",
+        "number": 2,
+        "effective_date": "2024-09-01",
+        "category": "Governing Law",
+        "kind": "replace",
+        "section_label": "Section 18.07",
+        "old_clause": "This Agreement takes effect upon its acceptance and execution by AIRSOPURE in the State of Texas, and shall be interpreted and construed under the laws of the State of New York.",
+        "new_clause": "This Agreement takes effect upon its acceptance and execution by AIRSOPURE in the State of Texas, and shall be interpreted and construed under the laws of the State of California.",
+        "summary": "the laws of the State of California"
+      }
+    ]
+  },
+  {
+    "family": 3,
+    "plan": "liability_cap",
+    "vendor_name": "Alliedesportsentertainmentinc",
+    "base_file": "license_agreements_alliedesportsentertainmentinc.pdf",
+    "amendments": [
+      {
+        "file_name": "alliedesportsentertainmentinc_amendment_1.pdf",
+        "number": 1,
+        "effective_date": "2024-03-01",
+        "category": "Cap On Liability",
+        "kind": "replace",
+        "section_label": "",
+        "old_clause": "EXCEPT IN CASES OF GROSS NEGLIGENCE, WILLFUL MISCONDUCT OR FRAUD, INDEMNIFICATION CLAIMS UNDER SECTION 5 OR BREACHES OF SECTION 2 (TRADEMARKS), 8 (CONFIDENTIALITY), OR 9 (NO AGENCY RELATIONSHIP), IN NO EVENT SHALL EITHER PARTY OR ITS OFFICERS, DIRECTORS, OR EMPLOYEES BE LIABLE TO THE OTHER PARTY IN CONNECTION WITH THE SUBJECT MATTER HEREOF, FOR ANY SPECIAL, INDIRECT, CONSEQUENTIAL OR PUNITIVE DAMAGES OF ANY KIND, LOST PROFITS OR LOST REVENUE, WHETHER ARISING IN CONTRACT, TORT, NEGLIGENCE, STATUTE, OR OTHERWISE, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.",
+        "new_clause": "EXCEPT IN CASES OF GROSS NEGLIGENCE, WILLFUL MISCONDUCT OR FRAUD, INDEMNIFICATION CLAIMS UNDER SECTION 5 OR BREACHES OF SECTION 2 (TRADEMARKS), 8 (CONFIDENTIALITY), OR 9 (NO AGENCY RELATIONSHIP), IN NO EVENT SHALL EITHER PARTY OR ITS OFFICERS, DIRECTORS, OR EMPLOYEES BE LIABLE TO THE OTHER PARTY IN CONNECTION WITH THE SUBJECT MATTER HEREOF, FOR ANY SPECIAL, INDIRECT, CONSEQUENTIAL OR PUNITIVE DAMAGES OF ANY KIND, LOST PROFITS OR LOST REVENUE, WHETHER ARISING IN CONTRACT, TORT, NEGLIGENCE, STATUTE, OR OTHERWISE, EVEN IF ADVISED OF THE POSSIBILITY THEREOF. SUBJECT TO THE FOREGOING EXCEPTIONS, EACH PARTY'S TOTAL LIABILITY UNDER THIS AGREEMENT SHALL NOT EXCEED THE FEES PAID OR PAYABLE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.",
+        "summary": "total liability limited to the fees paid or payable in the twelve (12) months before the claim"
+      }
+    ]
+  },
+  {
+    "family": 4,
+    "plan": "termination_notice",
+    "vendor_name": "Adianutrition Inc",
+    "base_file": "reseller_adianutrition_inc.pdf",
+    "amendments": [
+      {
+        "file_name": "adianutrition_inc_amendment_1.pdf",
+        "number": 1,
+        "effective_date": "2024-03-01",
+        "category": "Termination For Convenience",
+        "kind": "replace",
+        "section_label": "Section 5.2",
+        "old_clause": "PivX may terminate this Agreement for convenience by giving at least thirty (30) days written notice of termination to Detto.",
+        "new_clause": "PivX may terminate this Agreement for convenience by giving at least sixty (60) days' prior written notice of termination to Detto.",
+        "summary": "sixty (60) days' prior written notice"
+      }
+    ]
+  }
+]

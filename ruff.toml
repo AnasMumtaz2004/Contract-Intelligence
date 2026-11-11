@@ -1,0 +1,6 @@
+line-length = 120
+
+[lint]
+# E4, E7 and E9 are the basic syntax and import problems. F is the "pyflakes" group.
+# F finds unused imports and variables, and names that do not exist.
+select = ["E4", "E7", "E9", "F"]

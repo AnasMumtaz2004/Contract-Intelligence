@@ -2,8 +2,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.rate_limiters import InMemoryRateLimiter
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
-
+from app.cache import get_llm_reply, make_llm_key, save_llm_reply
 from app.config import settings
+
 
 # How long to wait for one answer, and how many times the library itself retries
 REQUEST_TIMEOUT_SECONDS = 45
@@ -102,8 +103,20 @@ def get_text(response) -> str:
 
 
 async def ask_llm(role: str, system_prompt: str, user_prompt: str) -> str:
-    """Send a system prompt and a user prompt to the model and return its text answer."""
+    """Send a system prompt and a user prompt to the model and return its text answer. Repeated calls come from the cache."""
+    key = None
+    if settings.llm_cache_enabled:
+        key = make_llm_key(role, system_prompt, user_prompt)
+        cached = await get_llm_reply(key)
+        if cached is not None:
+            return cached
+
     llm = get_llm(role)
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
     response = await llm.ainvoke(messages)
-    return get_text(response)
+    text = get_text(response)
+
+    # An empty reply is probably a failure, so it is not saved
+    if key is not None and text.strip() != "":
+        await save_llm_reply(key, text)
+    return text

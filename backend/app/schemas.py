@@ -137,6 +137,7 @@ class MessageOut(BaseModel):
     content: str
     status: str | None
     warning: str | None = None
+    feedback: int | None = None
     citations: list[CitationOut]
     created_at: datetime
 
@@ -166,3 +167,36 @@ class MetadataUpdate(BaseModel):
     document_type: str
     effective_date: date | None = None
     parent_document_id: int | None = None
+    
+class FeedbackRequest(BaseModel):
+    """A thumbs up (1) or thumbs down (-1)."""
+
+    rating: int
+    comment: str | None = Field(default=None, max_length=500)
+
+
+class FocusOut(BaseModel):
+    """The contract that follow-up questions of a conversation focus on."""
+
+    contract_id: int | None
+    vendor_name: str
+
+
+class MemoryCreate(BaseModel):
+    """A new memory: an alias or a preference."""
+
+    kind: str
+    key: str = Field(min_length=1, max_length=255)
+    value: str = Field(min_length=1, max_length=500)
+
+
+class MemoryOut(BaseModel):
+    """A memory sent to the frontend."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    kind: str
+    key: str
+    value: str
+    created_at: datetime

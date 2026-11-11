@@ -1,24 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { clearToken, deleteDocument, getDocuments } from "../api";
+import { clearToken, deleteDocument, getDocuments, releaseDocument } from "../api";
 import MetadataForm from "../components/MetadataForm";
 import UploadDialog from "../components/UploadDialog";
-import { Badge, Button, Modal } from "../components/ui";
+import { Badge, Button, EmptyState, ErrorBanner, Modal, PageLoading, useToast } from "../components/ui";
 
 // Documents without a vendor are stored under this name
 const UNASSIGNED_VENDOR = "Unassigned";
 
+// After these statuses nothing changes by itself, so the page stops asking for updates
+const FINAL_STATUSES = ["ready", "failed", "quarantined"];
+
 /** Sort by effective date, oldest first. Documents without a date come first. */
 function compareByDate(first, second) {
-  let firstDate = "";
-  if (first.effective_date !== null) {
-    firstDate = first.effective_date;
-  }
-  let secondDate = "";
-  if (second.effective_date !== null) {
-    secondDate = second.effective_date;
-  }
+  const firstDate = first.effective_date ?? "";
+  const secondDate = second.effective_date ?? "";
 
   if (firstDate < secondDate) {
     return -1;
@@ -113,7 +110,9 @@ function describeParser(parserUsed) {
 /** The main page: all uploaded documents, grouped by contract, with their status. */
 export default function Library() {
   const navigate = useNavigate();
+  const showToast = useToast();
   const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [showUpload, setShowUpload] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
@@ -123,9 +122,11 @@ export default function Library() {
     try {
       const data = await getDocuments();
       setDocuments(data);
+      setError("");
     } catch (err) {
       setError(err.message);
     }
+    setIsLoading(false);
   }
 
   // Load the list once when the page opens
@@ -135,9 +136,7 @@ export default function Library() {
 
   // While any document is still processing, reload the list every 3 seconds
   useEffect(() => {
-    const hasActiveDocument = documents.some(
-      (item) => item.status !== "ready" && item.status !== "failed"
-    );
+    const hasActiveDocument = documents.some((item) => !FINAL_STATUSES.includes(item.status));
     if (!hasActiveDocument) {
       return;
     }
@@ -164,7 +163,33 @@ export default function Library() {
     if (!confirmed) {
       return;
     }
-    await deleteDocument(item.id);
+
+    try {
+      await deleteDocument(item.id);
+      showToast("Document deleted", "success");
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+    loadDocuments();
+  }
+
+  /** Let a blocked document through, after the user confirmed that the sender is trusted. */
+  async function handleRelease(item) {
+    const confirmed = window.confirm(
+      "Release " +
+        item.file_name +
+        " only if you trust the sender. Its instruction-like sentences will still be removed from the text."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await releaseDocument(item.id);
+      showToast("Released. The document is being processed.", "success");
+    } catch (err) {
+      showToast(err.message, "error");
+    }
     loadDocuments();
   }
 
@@ -177,10 +202,10 @@ export default function Library() {
   const groups = groupByVendor(documents);
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="mx-auto max-w-6xl p-4 md:p-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Contract Library</h1>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={() => navigate("/chat")}>
             Ask questions
           </Button>
@@ -191,12 +216,14 @@ export default function Library() {
         </div>
       </div>
 
-      {error !== "" && <p className="mb-4 text-sm text-red-600">{error}</p>}
+      <ErrorBanner message={error} onRetry={loadDocuments} />
 
-      {documents.length === 0 && (
-        <p className="rounded bg-white p-8 text-center text-gray-500 shadow">
-          No contracts yet. Click "Upload contract" to add your first one.
-        </p>
+      {isLoading && <PageLoading text="Loading your contracts..." />}
+
+      {!isLoading && error === "" && documents.length === 0 && (
+        <EmptyState title="No contracts yet" text="Upload a PDF to get started. The first one takes a minute, because the models load.">
+          <Button onClick={() => setShowUpload(true)}>Upload contract</Button>
+        </EmptyState>
       )}
 
       <div className="space-y-6">
@@ -205,16 +232,14 @@ export default function Library() {
             <div className="border-b px-4 py-3">
               <h2 className="font-semibold">{group.vendorName}</h2>
               {group.vendorName === UNASSIGNED_VENDOR ? (
-                <p className="text-xs text-amber-700">
-                  These documents have no vendor yet. Click Edit to set one.
-                </p>
+                <p className="text-xs text-amber-700">These documents have no vendor yet. Click Edit to set one.</p>
               ) : (
                 <p className="text-xs text-gray-500">{group.rows.length} document(s)</p>
               )}
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[40rem] text-left text-sm">
                 <thead className="border-b bg-gray-50 text-gray-600">
                   <tr>
                     <th className="p-3">File</th>
@@ -239,8 +264,16 @@ export default function Library() {
                       <td className="p-3">{row.item.effective_date ?? "-"}</td>
                       <td className="p-3">
                         <Badge status={row.item.status} />
-                        {row.item.status === "failed" && (
-                          <p className="mt-1 max-w-xs text-xs text-red-600">{row.item.error_message}</p>
+                        {/* The reason is shown for documents that failed or were blocked by the scan */}
+                        {(row.item.status === "failed" || row.item.status === "quarantined") && (
+                          <p
+                            className={
+                              "mt-1 max-w-sm text-xs " +
+                              (row.item.status === "quarantined" ? "text-orange-700" : "text-red-600")
+                            }
+                          >
+                            {row.item.error_message}
+                          </p>
                         )}
                       </td>
                       <td className="p-3">{row.item.page_count}</td>
@@ -248,9 +281,16 @@ export default function Library() {
                       <td className="p-3">{describeParser(row.item.parser_used)}</td>
                       <td className="p-3">
                         <div className="flex gap-2">
-                          <Button variant="secondary" onClick={() => setEditingDocument(row.item)}>
-                            Edit
-                          </Button>
+                          {row.item.status === "quarantined" && (
+                            <Button variant="danger" onClick={() => handleRelease(row.item)}>
+                              Release
+                            </Button>
+                          )}
+                          {row.item.status === "ready" && (
+                            <Button variant="secondary" onClick={() => setEditingDocument(row.item)}>
+                              Edit
+                            </Button>
+                          )}
                           <Button variant="danger" onClick={() => handleDelete(row.item)}>
                             Delete
                           </Button>

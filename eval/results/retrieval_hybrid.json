@@ -280,6 +280,254 @@
     "amendment_retrieved": null
   },
   {
+    "id": "t001",
+    "level": 4,
+    "vendor_name": "Americasshoppingmallinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t006",
+    "level": 4,
+    "vendor_name": "Igenebiotechnologyinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t008",
+    "level": 3,
+    "vendor_name": "Igenebiotechnologyinc",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t009",
+    "level": 4,
+    "vendor_name": "Bloomenergycorp",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t013",
+    "level": 6,
+    "vendor_name": "Antares Pharma Inc.",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t014",
+    "level": 4,
+    "vendor_name": "Audibleinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t015",
+    "level": 6,
+    "vendor_name": "Audibleinc",
+    "answerable": true,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t016",
+    "level": 3,
+    "vendor_name": "Audibleinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t017",
+    "level": 6,
+    "vendor_name": "Quaker Chemical Corporation",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t018",
+    "level": 6,
+    "vendor_name": "Bnlfinancialcorp",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t020",
+    "level": 6,
+    "vendor_name": "Abilityinc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t021",
+    "level": 4,
+    "vendor_name": "Drkoopcominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "t023",
+    "level": 3,
+    "vendor_name": "Drkoopcominc",
+    "answerable": true,
+    "context_hit": true,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n001",
+    "level": 7,
+    "vendor_name": "Americasshoppingmallinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n002",
+    "level": 7,
+    "vendor_name": "Americasshoppingmallinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n003",
+    "level": 7,
+    "vendor_name": "Armstrongflooring Inc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n004",
+    "level": 7,
+    "vendor_name": "Armstrongflooring Inc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n005",
+    "level": 7,
+    "vendor_name": "Borrowmoneycom Inc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n006",
+    "level": 7,
+    "vendor_name": "Igenebiotechnologyinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n007",
+    "level": 7,
+    "vendor_name": "Igenebiotechnologyinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n008",
+    "level": 7,
+    "vendor_name": "Bloomenergycorp",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n009",
+    "level": 7,
+    "vendor_name": "Antares Pharma Inc.",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n010",
+    "level": 7,
+    "vendor_name": "Audibleinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n011",
+    "level": 7,
+    "vendor_name": "Quaker Chemical Corporation",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n012",
+    "level": 7,
+    "vendor_name": "Quaker Chemical Corporation",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n013",
+    "level": 7,
+    "vendor_name": "Ashworthinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n014",
+    "level": 7,
+    "vendor_name": "Ashworthinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n015",
+    "level": 7,
+    "vendor_name": "Abilityinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n016",
+    "level": 7,
+    "vendor_name": "Abilityinc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n017",
+    "level": 7,
+    "vendor_name": "Drkoopcominc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
+    "id": "n018",
+    "level": 7,
+    "vendor_name": "Drkoopcominc",
+    "answerable": false,
+    "context_hit": false,
+    "amendment_retrieved": null
+  },
+  {
     "id": "c001",
     "level": 1,
     "vendor_name": "Creditcardscominc Scan",

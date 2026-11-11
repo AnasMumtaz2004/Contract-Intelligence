@@ -5,10 +5,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import cache, memory
 from app.agent.graph import stream_agent
+from app.config import settings
 from app.database import AsyncSessionLocal
 from app.deps import get_current_user, get_db
-from app.models import Chunk, Citation, Contract, Conversation, Document, Message, Section, User
+from app.models import Chunk, Citation, Contract, Conversation, Document, Feedback, Message, Section, User
 from app.rag import NOT_FOUND_TEXT
 from app.schemas import (
     AnswerOut,
@@ -17,6 +19,8 @@ from app.schemas import (
     CitationOut,
     ConversationCreate,
     ConversationOut,
+    FeedbackRequest,
+    FocusOut,
     MessageOut,
 )
 
@@ -73,7 +77,7 @@ async def list_messages(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Return all messages of a conversation, with the citations of each answer."""
+    """Return all messages of a conversation, with the citations and the feedback of each answer."""
     conversation = await get_conversation_for_user(db, conversation_id, user.id)
 
     query = select(Message).where(Message.conversation_id == conversation.id)
@@ -117,6 +121,13 @@ async def list_messages(
             citations_by_message[citation.message_id] = []
         citations_by_message[citation.message_id].append(citation_out)
 
+    # The thumbs of this user
+    feedback_query = select(Feedback).where(Feedback.user_id == user.id, Feedback.message_id.in_(message_ids))
+    feedback_result = await db.execute(feedback_query)
+    ratings = {}
+    for item in feedback_result.scalars().all():
+        ratings[item.message_id] = item.rating
+
     output = []
     for message in messages:
         message_out = MessageOut(
@@ -125,6 +136,7 @@ async def list_messages(
             content=message.content,
             status=message.status,
             warning=message.warning,
+            feedback=ratings.get(message.id),
             citations=citations_by_message.get(message.id, []),
             created_at=message.created_at,
         )
@@ -150,7 +162,15 @@ async def stream_answer(conversation_id: int, user_id: int, contract_id: int | N
 
             final_state = {}
             steps_sent = 0
-            async for state in stream_agent(db, user_id, contract_id, question, trace_info):
+            async for state in stream_agent(
+                db,
+                user_id,
+                contract_id,
+                question,
+                trace_info,
+                conversation_id=conversation_id,
+                use_cache=settings.response_cache_enabled,
+            ):
                 final_state = state
 
                 # Every new step is sent to the browser as soon as it exists
@@ -209,6 +229,21 @@ async def stream_answer(conversation_id: int, user_id: int, contract_id: int | N
 
             await db.commit()
 
+            # Short-term memory: this turn, and the contract that follow-up questions will use
+            focus_vendor = final_state.get("focus_vendor", "")
+            await memory.add_turn(
+                conversation_id,
+                final_state.get("question", question),
+                answer_text,
+                final_state.get("focus_contract_id"),
+                focus_vendor,
+            )
+
+            # A thumbs down on this message can now delete the saved answer
+            cache_key = final_state.get("cache_key", "")
+            if cache_key != "":
+                await cache.remember_message_key(assistant_message.id, cache_key)
+
             answer = AnswerOut(
                 message_id=assistant_message.id,
                 answer=answer_text,
@@ -217,6 +252,12 @@ async def stream_answer(conversation_id: int, user_id: int, contract_id: int | N
                 warning=warning,
             )
             yield sse_event("answer", answer.model_dump(mode="json"))
+
+            if focus_vendor != "":
+                yield sse_event(
+                    "focus",
+                    {"contract_id": final_state.get("focus_contract_id"), "vendor_name": focus_vendor},
+                )
 
         except Exception as error:
             # LLM calls can fail (for example a rate limit), so the user must see a message
@@ -239,6 +280,68 @@ async def ask_question(
     generator = stream_answer(conversation.id, user.id, conversation.contract_id, data.question.strip())
     headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     return StreamingResponse(generator, media_type="text/event-stream", headers=headers)
+
+
+@router.get("/conversations/{conversation_id}/focus", response_model=FocusOut)
+async def get_focus(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return the contract that follow-up questions of this conversation focus on."""
+    conversation = await get_conversation_for_user(db, conversation_id, user.id)
+    stm = await memory.load_stm(conversation.id)
+    return FocusOut(contract_id=stm["focus_contract_id"], vendor_name=stm["focus_vendor"])
+
+
+@router.delete("/conversations/{conversation_id}/focus", response_model=FocusOut)
+async def clear_focus(
+    conversation_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Stop focusing on one contract. The next question searches all contracts again."""
+    conversation = await get_conversation_for_user(db, conversation_id, user.id)
+    await memory.clear_focus(conversation.id)
+    return FocusOut(contract_id=None, vendor_name="")
+
+
+@router.post("/messages/{message_id}/feedback")
+async def send_feedback(
+    message_id: int,
+    data: FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Save a thumbs up (1) or thumbs down (-1) for an answer. A thumbs down also deletes its saved answer."""
+    if data.rating not in (1, -1):
+        raise HTTPException(status_code=400, detail="The rating must be 1 or -1")
+
+    message = await db.get(Message, message_id)
+    if message is None or message.role != "assistant":
+        raise HTTPException(status_code=404, detail="Answer not found")
+
+    conversation = await db.get(Conversation, message.conversation_id)
+    if conversation is None or conversation.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Answer not found")
+
+    query = select(Feedback).where(Feedback.user_id == user.id, Feedback.message_id == message_id)
+    result = await db.execute(query)
+    feedback = result.scalars().first()
+
+    if feedback is None:
+        feedback = Feedback(user_id=user.id, message_id=message_id, rating=data.rating, comment=data.comment)
+        db.add(feedback)
+    else:
+        feedback.rating = data.rating
+        feedback.comment = data.comment
+    await db.commit()
+
+    # A bad answer must not be served again from the cache
+    if data.rating == -1:
+        await cache.forget_message_answer(message_id)
+
+    return {"rating": data.rating}
 
 
 @router.get("/chunks/{chunk_id}", response_model=ChunkDetailOut)

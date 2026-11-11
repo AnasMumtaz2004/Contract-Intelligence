@@ -1,8 +1,6 @@
-import asyncio
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.embeddings import embed_texts
+from app.cache import get_text_embeddings
 from app.ingestion.structure import get_section_text
 from app.models import Chunk, Document, Section
 
@@ -51,8 +49,8 @@ async def save_chunks(
     for chunk in chunks:
         texts_to_embed.append(chunk["section_path"] + "\n" + chunk["content"])
 
-    # Embedding is slow, so it runs in a thread and does not block the server
-    vectors = await asyncio.to_thread(embed_texts, texts_to_embed)
+    # Texts that were embedded before come from the cache, so a reindex is much faster
+    vectors = await get_text_embeddings(texts_to_embed)
 
     for position, chunk in enumerate(chunks):
         new_chunk = Chunk(

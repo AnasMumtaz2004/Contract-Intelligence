@@ -1,5 +1,5 @@
 // Change this if your backend runs on another address
-const API_URL = "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 // A document sent by the backend looks like this:
 // { id, contract_id, vendor_name, file_name, document_type, status,
@@ -219,4 +219,28 @@ export async function updateMetadata(documentId, metadata) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(metadata),
   });
+}
+
+/** Send a thumbs up (1) or thumbs down (-1) for an answer. */
+export async function sendFeedback(messageId, rating) {
+  return request("/chat/messages/" + messageId + "/feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rating: rating }),
+  });
+}
+
+/** Let a blocked document through. Its instruction-like sentences are still removed. */
+export async function releaseDocument(id) {
+  return request("/documents/" + id + "/release", { method: "POST" });
+}
+
+/** Get the contract that follow-up questions of a conversation focus on. */
+export async function getFocus(conversationId) {
+  return request("/chat/conversations/" + conversationId + "/focus");
+}
+
+/** Stop focusing on one contract. */
+export async function clearFocus(conversationId) {
+  return request("/chat/conversations/" + conversationId + "/focus", { method: "DELETE" });
 }

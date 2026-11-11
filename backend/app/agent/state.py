@@ -5,8 +5,20 @@ from typing import Annotated, TypedDict
 class AgentState(TypedDict, total=False):
     """Everything the agent knows while it works on one question."""
 
-    # The question from the user
+    # The question. If it was a follow-up, this is the version that stands on its own.
     question: str
+
+    # Memory and scope
+    contract_id: int | None
+    user_notes: str
+    focus_contract_id: int | None
+    focus_vendor: str
+
+    # Cache
+    cache_key: str
+    cache_hit: bool
+    # True if a step failed and the agent used a fallback. Such answers are not cached.
+    degraded: bool
 
     # Analyze: the question split into sub-questions, each with a search text
     sub_questions: list[dict]

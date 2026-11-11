@@ -1,3 +1,6 @@
+import { useState } from "react";
+
+import { sendFeedback } from "../api";
 import { Badge } from "./ui";
 
 // A short explanation under the status badge
@@ -49,9 +52,22 @@ function AnswerText({ content, citations, onCitationClick }) {
   );
 }
 
-/** One assistant answer with its status, a warning, clickable sources and a short notice. */
+/** One assistant answer with its status, a warning, clickable sources and thumbs up and down. */
 export default function AnswerCard({ message, onCitationClick }) {
   const statusHelp = STATUS_HELP[message.status];
+  const [rating, setRating] = useState(message.feedback ?? null);
+  const [feedbackError, setFeedbackError] = useState("");
+
+  /** Send the thumbs up (1) or thumbs down (-1) to the backend. */
+  async function handleRating(newRating) {
+    setFeedbackError("");
+    try {
+      await sendFeedback(message.id, newRating);
+      setRating(newRating);
+    } catch (err) {
+      setFeedbackError(err.message);
+    }
+  }
 
   return (
     <div className="max-w-3xl rounded-lg bg-white p-4 shadow">
@@ -88,6 +104,32 @@ export default function AnswerCard({ message, onCitationClick }) {
           </ul>
         </div>
       )}
+
+      <div className="mt-3 flex items-center gap-3 border-t pt-3">
+        <span className="text-xs text-gray-500">Was this answer helpful?</span>
+        <button
+          onClick={() => handleRating(1)}
+          title="Helpful"
+          className={
+            "rounded border px-2 py-1 text-sm " +
+            (rating === 1 ? "border-green-500 bg-green-100" : "border-gray-300 hover:bg-gray-100")
+          }
+        >
+          👍
+        </button>
+        <button
+          onClick={() => handleRating(-1)}
+          title="Not helpful"
+          className={
+            "rounded border px-2 py-1 text-sm " +
+            (rating === -1 ? "border-red-500 bg-red-100" : "border-gray-300 hover:bg-gray-100")
+          }
+        >
+          👎
+        </button>
+        {rating === -1 && <span className="text-xs text-gray-500">Thanks. This answer will be made again next time.</span>}
+        {feedbackError !== "" && <span className="text-xs text-red-600">{feedbackError}</span>}
+      </div>
 
       <p className="mt-3 text-xs text-gray-400">Decision support only. This is not legal advice.</p>
     </div>

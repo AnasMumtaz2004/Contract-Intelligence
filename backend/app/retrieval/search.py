@@ -1,11 +1,10 @@
-import asyncio
 import re
 
 from sqlalchemy import func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.embeddings import embed_query
+from app.cache import get_query_embedding
 from app.models import Chunk, Document
 
 # Words shorter than this are ignored in keyword search
@@ -69,8 +68,8 @@ async def vector_search(
     document_type: str | None = None,
 ) -> list[dict]:
     """Find the chunks whose meaning is closest to the question."""
-    # Embedding is slow, so it runs in a thread
-    question_vector = await asyncio.to_thread(embed_query, question)
+    # The vector is cached, so a repeated question skips the model
+    question_vector = await get_query_embedding(question)
     distance = Chunk.embedding.cosine_distance(question_vector)
 
     query = select(

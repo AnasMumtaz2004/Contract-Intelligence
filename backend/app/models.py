@@ -162,3 +162,54 @@ class Citation(Base):
     number: Mapped[int] = mapped_column(Integer)
      # The claims of the answer that this source supports, as a JSON list
     claims_json: Mapped[str | None] = mapped_column(Text)
+    
+    
+class SecurityEvent(Base):
+    """One thing that the security scan found in a document."""
+
+    __tablename__ = "security_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # The document id becomes empty when the document is deleted, so the audit trail stays
+    document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"), index=True)
+    # injection_text, hidden_text or metadata
+    event_type: Mapped[str] = mapped_column(String(30))
+    severity: Mapped[str] = mapped_column(String(10))
+    rule: Mapped[str] = mapped_column(String(50))
+    page_number: Mapped[int | None] = mapped_column(Integer)
+    snippet: Mapped[str] = mapped_column(Text)
+    # quarantined, removed, redacted or ignored
+    action: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Memory(Base):
+    """Long-term memory of a user: vendor aliases and preferences."""
+
+    __tablename__ = "memories"
+    __table_args__ = (UniqueConstraint("user_id", "kind", "key", name="uq_memories_user_kind_key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    # "alias" or "preference"
+    kind: Mapped[str] = mapped_column(String(20))
+    # For an alias: the nickname. For a preference: a short label.
+    key: Mapped[str] = mapped_column(String(255))
+    # For an alias: the vendor name. For a preference: the note.
+    value: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Feedback(Base):
+    """A thumbs up (1) or thumbs down (-1) on an answer."""
+
+    __tablename__ = "feedback"
+    __table_args__ = (UniqueConstraint("user_id", "message_id", name="uq_feedback_user_message"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), index=True)
+    rating: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

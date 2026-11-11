@@ -15,14 +15,14 @@ class Settings(BaseSettings):
     max_upload_mb: int = 20
     frontend_origin: str = "http://localhost:5173"
 
-    # If you change the model, change the dimension and the migration too.
+    
     embedding_model_name: str = "BAAI/bge-small-en-v1.5"
     embedding_dimension: int = 384
 
     # Target size of one chunk, counted in words
     chunk_max_words: int = 300
 
-    # LLM keys and model names. Leave a key empty to skip that provider.
+
     google_api_key: str = ""
     groq_api_key: str = ""
     gemini_model: str = "gemini-3.8-flash"
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # Standard RRF constant. A bigger number makes lower ranks count more.
     rrf_k: int = 60
 
-        # Reranking: a small local model that re-scores the search results
+    # Reranking: a small local model that re-scores the search results
     reranker_model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     # How many search results go into the reranker
     rerank_pool: int = 20
@@ -75,7 +75,32 @@ class Settings(BaseSettings):
     langsmith_api_key: str = ""
     langsmith_project: str = "contract-intelligence"
     
-    # Look for .env in the backend folder first, then in the project root
+   # Security. Turn the scan off only to measure what it adds.
+    security_scan_enabled: bool = True
+
+    # Short-term memory (Redis)
+    stm_ttl_seconds: int = 7200
+    stm_max_turns: int = 4
+    stm_answer_chars: int = 300
+
+    # Caches (Redis)
+    response_cache_enabled: bool = True
+    response_cache_ttl_seconds: int = 86400
+    embedding_cache_ttl_seconds: int = 2592000
+    llm_cache_enabled: bool = True
+    llm_cache_ttl_seconds: int = 604800
+    
+        # Rate limits: requests per minute. A value of 0 turns a limit off.
+    rate_limit_login_per_minute: int = 10
+    rate_limit_ask_per_minute: int = 20
+    rate_limit_upload_per_minute: int = 10
+
+    # The largest JSON request body, in bytes. Uploads are limited by max_upload_mb instead.
+    max_json_body_bytes: int = 100000
+
+    # "json" for servers (one JSON object per line), "text" for reading logs on your own computer
+    log_format: str = "json"
+    
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
 

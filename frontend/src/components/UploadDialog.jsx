@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 
-import { getDocument, uploadDocument } from "../api";
+import { getDocument, releaseDocument, uploadDocument } from "../api";
 import MetadataForm from "./MetadataForm";
 import { Button, Modal, Spinner } from "./ui";
 
 const DOCUMENT_TYPES = ["Other", "MSA", "NDA", "SOW", "Amendment", "Exhibit"];
 
 // The steps a document goes through, in order
-const STEPS = ["uploaded", "parsing", "chunking", "embedding", "ready"];
+const STEPS = ["uploaded", "parsing", "scanning", "chunking", "embedding", "ready"];
+
+const STEP_LABELS = {
+  uploaded: "Uploaded",
+  parsing: "Reading the PDF",
+  scanning: "Security scan",
+  chunking: "Splitting into clauses",
+  embedding: "Indexing",
+  ready: "Ready",
+};
+
+// After these statuses nothing changes by itself
+const FINAL_STATUSES = ["ready", "failed", "quarantined"];
 
 /** Show the processing steps and mark which ones are done. */
 function ProgressSteps({ status }) {
@@ -23,11 +35,10 @@ function ProgressSteps({ status }) {
           marker = "…";
         }
 
-        const label = step.charAt(0).toUpperCase() + step.slice(1);
         return (
           <li key={step} className="flex items-center gap-2 text-sm">
             <span className="w-4 text-center">{marker}</span>
-            <span>{label}</span>
+            <span>{STEP_LABELS[step]}</span>
           </li>
         );
       })}
@@ -42,6 +53,7 @@ export default function UploadDialog({ onClose }) {
   const [documentType, setDocumentType] = useState("Other");
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
   const [error, setError] = useState("");
   const [uploadedDocument, setUploadedDocument] = useState(null);
 
@@ -50,7 +62,7 @@ export default function UploadDialog({ onClose }) {
     if (uploadedDocument === null) {
       return;
     }
-    if (uploadedDocument.status === "ready" || uploadedDocument.status === "failed") {
+    if (FINAL_STATUSES.includes(uploadedDocument.status)) {
       return;
     }
 
@@ -108,6 +120,25 @@ export default function UploadDialog({ onClose }) {
     setIsUploading(false);
   }
 
+  /** Let a blocked document through after the user confirmed that the sender is trusted. */
+  async function handleRelease() {
+    const confirmed = window.confirm(
+      "Release this document only if you trust the sender. Its instruction-like sentences will still be removed from the text."
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setIsReleasing(true);
+    try {
+      const released = await releaseDocument(uploadedDocument.id);
+      setUploadedDocument(released);
+    } catch (err) {
+      setError(err.message);
+    }
+    setIsReleasing(false);
+  }
+
   // Step 3: the document is ready, so the user checks the detected details
   if (uploadedDocument !== null && uploadedDocument.status === "ready") {
     return (
@@ -117,6 +148,30 @@ export default function UploadDialog({ onClose }) {
           {uploadedDocument.page_count} pages (read with {uploadedDocument.parser_used}).
         </p>
         <MetadataForm documentItem={uploadedDocument} useSuggestions={true} onDone={onClose} />
+      </Modal>
+    );
+  }
+
+  // The security scan blocked the document
+  if (uploadedDocument !== null && uploadedDocument.status === "quarantined") {
+    return (
+      <Modal title="Blocked by the security scan" onClose={onClose}>
+        <p className="mb-3 text-sm text-gray-600">{uploadedDocument.file_name}</p>
+        <div className="rounded border border-orange-300 bg-orange-50 p-3 text-sm text-orange-900">
+          {uploadedDocument.error_message}
+        </div>
+        <p className="mt-3 text-xs text-gray-500">
+          Nothing from this document was added to your library. If you trust the sender, you can release it.
+        </p>
+        {error !== "" && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="danger" onClick={handleRelease} disabled={isReleasing}>
+            Release anyway
+          </Button>
+        </div>
       </Modal>
     );
   }

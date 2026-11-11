@@ -238,3 +238,24 @@ async def delete_document(
     await db.delete(document)
     await db.commit()
     return {"message": "Document deleted"}
+
+@router.post("/{document_id}/release", response_model=DocumentOut)
+async def release_document(
+    document_id: int,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Let a blocked document through. Its instruction-like sentences are still removed from the text."""
+    document = await get_document_for_user(db, document_id, user.id)
+    if document.status != "quarantined":
+        raise HTTPException(status_code=400, detail="Only blocked documents can be released")
+
+    document.status = "uploaded"
+    document.error_message = None
+    await db.commit()
+
+    background_tasks.add_task(run_ingestion, document.id, True)
+
+    contract = await db.get(Contract, document.contract_id)
+    return make_document_out(document, contract.vendor_name)

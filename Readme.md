@@ -166,7 +166,3 @@ eval/          question builders, runners, report and summary scripts
 data/          CUAD sample, synthetic amendments, scans, poisoned contracts
 docs/          architecture, ingestion, retrieval, evaluation, api
 ```
-
-## Credits
-
-CUAD: Hendrycks et al., *CUAD: An Expert-Annotated NLP Dataset for Legal Contract Review* (The Atticus Project).

@@ -30,7 +30,7 @@ warns when an amendment may have changed a clause, and treats uploaded documents
 ## Screenshots
 
 ### Sign in
-![Sign in page](assets/login.png)
+![Sign in page](assets/Login.png)
 
 ### Contract library
 ![Contract library with ready, OCR and table-based documents](assets/Library.png)
